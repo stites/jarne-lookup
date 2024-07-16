@@ -1,0 +1,63 @@
+cabal-version:   3.4
+name:            jarne
+version:         0.1.0.0
+license:         NONE
+author:          Sam Stites
+maintainer:      Sam Stites <spnony@f.cge.qri>#rot13
+build-type:      Simple
+
+common base
+  default-language: GHC2021
+  ghc-options:      -Wall -fplugin=Effectful.Plugin
+  default-extensions:
+    ConstraintKinds
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DerivingStrategies
+    DerivingVia
+    LambdaCase
+  build-depends:   base ^>= 4.18.0.0
+      , effectful        >= 2.3.0.0
+      , effectful-core   >= 2.3.0.0
+      , effectful-plugin >= 1.1.0.0
+      , co-log
+      , hidapi
+      , lens
+      , containers
+      , unordered-containers
+      , bytestring
+      , utf8-string
+      , dlist
+      , unix
+      , text
+
+executable x
+  import:           base
+  main-is:          Main.hs
+  hs-source-dirs:   src
+
+executable l
+  import:           base
+  main-is:          Listen.hs
+  hs-source-dirs:   src
+  build-depends:    aeson
+
+
+executable w
+  import:           base
+  main-is:          Widget.hs
+  hs-source-dirs:   src
+  build-depends:
+    reflex
+    , reflex-gi-gtk
+    , reflex-process
+    , gi-gtk
+    --, primitive
+    -- primitive
+
+  ghc-options:
+      -O3
+      -threaded
+      -rtsopts
+      "-with-rtsopts=-N4 -s"
