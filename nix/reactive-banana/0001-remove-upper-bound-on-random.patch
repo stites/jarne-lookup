@@ -1,0 +1,34 @@
+From f96539422bd8de977b6aaf9977bac32e44daa804 Mon Sep 17 00:00:00 2001
+From: Sam Stites <stites@users.noreply.github.com>
+Date: Wed, 17 Jul 2024 21:30:41 -0400
+Subject: [PATCH] remove upper bound on random
+
+---
+ reactive-banana-wx/reactive-banana-wx.cabal | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/reactive-banana-wx/reactive-banana-wx.cabal b/reactive-banana-wx/reactive-banana-wx.cabal
+index 5b2c3cf..4e75260 100644
+--- a/reactive-banana-wx.cabal
++++ b/reactive-banana-wx.cabal
+@@ -60,7 +60,7 @@ Executable Animation
+     if flag(buildExamples)
+         build-depends:
+             process >= 1.0 && < 1.7,
+-            random >= 1.0 && <= 1.1,
++            random >= 1.0,
+             executable-path == 0.0.*,
+             filepath >= 1.1 && < 1.5.0.0,
+             reactive-banana, wx, wxcore, base
+@@ -83,7 +84,7 @@ Executable Arithmetic
+ Executable Asteroids
+     if flag(buildExamples)
+         build-depends:
+-            random >= 1.0 && <= 1.1,
++            random >= 1.0,
+             executable-path == 0.0.*,
+             filepath >= 1.1 && < 1.5.0.0,
+             reactive-banana, wx, wxcore, base
+-- 
+2.44.1
+

@@ -9,12 +9,12 @@
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     flake-root.url = "github:srid/flake-root";
     mission-control.url = "github:Platonic-Systems/mission-control";
-    #reflex-gi-gtk.url = "gitlab:Kritzefitz/reflex-gi-gtk/0.2.0.1";
-    #reflex-gi-gtk.flake = false;
-    #reflex.url = "github:reflex-frp/reflex/v0.9.3.0";
-    #reflex.flake = false;
-    primitive.url = "github:haskell/primitive/v0.7.0.1";
-    primitive.flake = false;
+
+    reactive-banana.url = "github:HeinrichApfelmus/reactive-banana";
+    reactive-banana.flake = false;
+    wxHaskell.url = "git+https://codeberg.org/wxHaskell/wxHaskell?ref=master";
+    wxHaskell.flake = false;
+    # https://github.com/HeinrichApfelmus/reactive-banana/
   };
   outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -27,23 +27,57 @@
       ];
       perSystem = { self', system, lib, config, pkgs, ... }: {
         haskellProjects.default = {
-          # basePackages = pkgs.haskell.packages.ghc96;
           packages = {
-            #primitive.source = inputs.primitive;
             primitive.source = "0.7.4.0";
-            #aeson.source = "2.2.1.0";
-
+            wx.source = "${inputs.wxHaskell}/wx";
+            wxdirect.source = "${inputs.wxHaskell}/wxdirect";
+            reactive-banana.source = "${inputs.reactive-banana}/reactive-banana";
+            reactive-banana-wx.source = "${inputs.reactive-banana}/reactive-banana-wx";
             #reflex-gi-gtk.source = inputs.reflex-gi-gtk;
             #reflex.source = inputs.reflex;
+            #process.source = "1.4.3.0";
           };
           settings = {
-            primitive =  {
-              check = false;
+            primitive.check = false;
+            wxcore = {super, ...}: {
+              custom = _:
+                let
+                  wxc = (pkgs.callPackage ./nix/wxHaskell/wxc.nix {})
+                      .overrideAttrs {src = "${inputs.wxHaskell}/wxc";};
+                in
+                (super.callPackage ./nix/wxHaskell/wxcore.nix {
+                  wxGTK = pkgs.wxGTK32;
+                  inherit wxc ;
+                }).overrideAttrs (o: {
+                  src = "${inputs.wxHaskell}/wxcore";
+                  # https://github.com/NixOS/nixpkgs/issues/41340#issuecomment-394219692
+                  strictDeps = true;
+                  nativeBuildInputs = o.nativeBuildInputs ++ [
+                    pkgs.pkg-config
+                    pkgs.wxGTK32 # wxdirect needs wx-config at config time
+                    wxc
+                  ];
+                  isExecutable = false;
+                  isLibrary = true;
+                  buildPhase = ''
+                    cp ${./nix/wxHaskell}/*.hs src/haskell/Graphics/UI/WXCore/
+                  '' + o.buildPhase;
+                  patches = [
+                    ./nix/wxHaskell/0001-inline-autogen-d-code.patch
+                    ./nix/wxHaskell/0002-strip-autogen-from-cabal-build-process.patch
+                  ];
+                });
+            };
+            reactive-banana-wx = {super, ...}: {
+              cabalFlags.buildExamples = true;
+              custom = o : o.overrideAttrs (old: {
+                buildInputs = (with super; [random array containers process filepath executable-path]) ++ old.buildInputs;
+              });
+              patches = [
+                ./nix/reactive-banana/0001-remove-upper-bound-on-random.patch
+              ];
             };
             reflex-gi-gtk =  {
-              #check = false;
-              #haddock = false;
-              #extraBuildDepends = [ pkgs.stork ];
               broken = false;
             };
           };

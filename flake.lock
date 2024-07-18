@@ -91,20 +91,19 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/5daf0514482af3f97abaefc78a6606365c9108e2.tar.gz"
       }
     },
-    "primitive": {
+    "reactive-banana": {
       "flake": false,
       "locked": {
-        "lastModified": 1582998534,
-        "narHash": "sha256-AV8asfYfFJCkXtSzPIr0v6blJqr1TBwvI/0fzc8hN90=",
-        "owner": "haskell",
-        "repo": "primitive",
-        "rev": "9c8cf3bc12754ec095629ddb1e06c754c7b08855",
+        "lastModified": 1706483511,
+        "narHash": "sha256-326/EE6i9Vs+5PPtn+OgdEdkFOKIq/aDUgx0bULtYG0=",
+        "owner": "HeinrichApfelmus",
+        "repo": "reactive-banana",
+        "rev": "b7d834c70d8b972285ca95ffac32b1f9c713c357",
         "type": "github"
       },
       "original": {
-        "owner": "haskell",
-        "ref": "v0.7.0.1",
-        "repo": "primitive",
+        "owner": "HeinrichApfelmus",
+        "repo": "reactive-banana",
         "type": "github"
       }
     },
@@ -115,9 +114,10 @@
         "haskell-flake": "haskell-flake",
         "mission-control": "mission-control",
         "nixpkgs": "nixpkgs",
-        "primitive": "primitive",
+        "reactive-banana": "reactive-banana",
         "systems": "systems",
-        "treefmt-nix": "treefmt-nix"
+        "treefmt-nix": "treefmt-nix",
+        "wxHaskell": "wxHaskell"
       }
     },
     "systems": {
@@ -153,6 +153,23 @@
         "owner": "numtide",
         "repo": "treefmt-nix",
         "type": "github"
+      }
+    },
+    "wxHaskell": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1718437152,
+        "narHash": "sha256-hHZ9yhlf4ytuJOVPyIjQLPcLhAM+vdmnkk1ZeOHn43k=",
+        "ref": "master",
+        "rev": "de5e4182ca37fb424e1f9642d78fdea9ea0cd144",
+        "revCount": 1026,
+        "type": "git",
+        "url": "https://codeberg.org/wxHaskell/wxHaskell"
+      },
+      "original": {
+        "ref": "master",
+        "type": "git",
+        "url": "https://codeberg.org/wxHaskell/wxHaskell"
       }
     }
   },

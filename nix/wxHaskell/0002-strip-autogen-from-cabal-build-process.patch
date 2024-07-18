@@ -1,0 +1,68 @@
+From 45eae5fdf1dec969a40f1adb966aadb7c135cea2 Mon Sep 17 00:00:00 2001
+From: Sam Stites <stites@users.noreply.github.com>
+Date: Tue, 16 Jul 2024 21:06:11 -0400
+Subject: [PATCH 2/2] strip autogen from cabal build process
+
+---
+ Setup.hs     |  2 --
+ configure    | 20 --------------------
+ wxcore.cabal |  9 +--------
+ 3 files changed, 1 insertion(+), 30 deletions(-)
+ delete mode 100644 wxcore/Setup.hs
+ delete mode 100755 configure
+
+diff --git a/Setup.hs b/Setup.hs
+deleted file mode 100644
+index f598ab7..0000000
+--- a/Setup.hs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-import Distribution.Simple
+-main = defaultMainWithHooks autoconfUserHooks
+diff --git a/configure b/configure
+deleted file mode 100755
+index 1c27e97..0000000
+--- a/configure
++++ /dev/null
+@@ -1,20 +0,0 @@
+-#!/bin/sh
+-
+-set -eu
+-
+-wxcoreDirectory=src/haskell/Graphics/UI/WXCore
+-
+-mkdir -p "$wxcoreDirectory"
+-
+-wxcIncludeDir="$(pkg-config --variable=includedir wxc)"
+-
+-wxcoreIncludeFile="$wxcIncludeDir/wxc/wxc.h"
+-
+-echo "Generating class type definitions from .h files"
+-wxdirect -t --wxc "$wxcIncludeDir" -o "$wxcoreDirectory" "$wxcoreIncludeFile"
+-
+-echo "Generating class info definitions"
+-wxdirect -i --wxc "$wxcIncludeDir" -o "$wxcoreDirectory" "$wxcoreIncludeFile"
+-
+-echo "Generating class method definitions from .h files"
+-wxdirect -c --wxc "$wxcIncludeDir" -o "$wxcoreDirectory" "$wxcoreIncludeFile"
+diff --git a/wxcore.cabal b/wxcore.cabal
+index e9db764..ca05652 100644
+*** a/wxcore.cabal
+--- b/wxcore.cabal
+@@ -20,14 +20,7 @@
+ bug-reports:  https://sourceforge.net/p/wxhaskell/bugs/
+ 
+ cabal-version: 2.0
+-build-type:    Configure
+-
+-extra-tmp-files:
+-  src/haskell/Graphics/UI/WXCore/WxcClassInfo.hs
+-  src/haskell/Graphics/UI/WXCore/WxcClassTypes.hs
+-  src/haskell/Graphics/UI/WXCore/WxcClasses.hs
+-  src/haskell/Graphics/UI/WXCore/WxcClassesAL.hs
+-  src/haskell/Graphics/UI/WXCore/WxcClassesMZ.hs
++build-type:    Simple
+ 
+ library
+   default-language:
+
