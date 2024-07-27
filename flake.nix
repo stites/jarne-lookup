@@ -126,21 +126,21 @@
           dev = {
             description = "Run the project with ghcid auto-recompile";
             exec = ''
-              ghcid -c "cabal repl $@" --warnings
+              ghcid -c "cabal repl $*" --warnings
             '';
             category = "Primary";
           };
           run = {
             description = "Run the project with ghcid auto-recompile";
             exec = ''
-              ghcid -c "cabal repl $@" --warnings -T :main
+              ghcid -c "cabal repl $*" --warnings -T :main
             '';
             category = "Primary";
           };
         };
 
         # haskell-flake doesn't set the default package, but you can do it here.
-        packages.default = self'.packages.jarne;
+        packages.default = self'.packages.jarnectl;
 
         devShells.default = pkgs.mkShell {
          inputsFrom = [

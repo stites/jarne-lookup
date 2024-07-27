@@ -1,5 +1,5 @@
 cabal-version:   3.4
-name:            jarne
+name:            jarnectl
 version:         0.1.0.0
 license:         NONE
 author:          Sam Stites
@@ -23,12 +23,12 @@ common base
      --, effectful-plugin >= 1.1.0.0
      --, co-log
       , hidapi
-      --, lens
-      --, containers
-      --, unordered-containers
+      , lens
+      , containers
+      , unordered-containers
       , bytestring
       , utf8-string
-      --, dlist
+      , dlist
       , unix
       , text
 
@@ -77,8 +77,8 @@ executable b
       reactive-banana ^>= 1.3
     -- , reactive-banana-wx ^>= 1.3
     , termbox ^>= 2
-    , termbox-bindings-hs
     , termbox-banana ^>= 2
+
 
 -- executable g
 --   import:           base
