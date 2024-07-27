@@ -123,10 +123,17 @@
             exec = config.treefmt.build.wrapper;
             category = "Dev Tools";
           };
+          dev = {
+            description = "Run the project with ghcid auto-recompile";
+            exec = ''
+              ghcid -c "cabal repl $@" --warnings
+            '';
+            category = "Primary";
+          };
           run = {
             description = "Run the project with ghcid auto-recompile";
             exec = ''
-              ghcid -c "cabal repl exe:x" --warnings -T :main
+              ghcid -c "cabal repl $@" --warnings -T :main
             '';
             category = "Primary";
           };

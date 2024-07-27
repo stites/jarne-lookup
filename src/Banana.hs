@@ -1,53 +1,56 @@
-{-----------------------------------------------------------------------------
-    reactive-banana-wx
+-- example code from termbox-banana docs
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
-    Example: Currency Converter
-------------------------------------------------------------------------------}
+module Main (main) where
 
-import Data.Maybe
-import Text.Printf
+import Data.Foldable (fold)
+import Data.Function ((&))
+import Reactive.Banana ((<@>))
+import Reactive.Banana qualified as Banana
+import Termbox.Banana qualified as Termbox
 
-import Graphics.UI.WX hiding (Event)
-import Reactive.Banana
-import Reactive.Banana.WX
-
-{-----------------------------------------------------------------------------
-    Main
-------------------------------------------------------------------------------}
 main :: IO ()
-main = start $ do
-    f        <- frame   [ text := "Currency Converter", tabTraversal := True ]
-    p        <- panel f []  -- Use panel for tab traversal
-    dollar   <- entry p []
-    euro     <- entry p []
+main = do
+  result <- Termbox.run network
+  putStrLn case result of
+    Left err -> "Termbox program failed to initialize: " ++ show err
+    Right state -> "Final state: " ++ show state
 
-    set p [layout := margin 10 $
-            column 10 [
-                grid 10 10 [[label "Dollar:", widget dollar],
-                            [label "Euro:"  , widget euro  ]]
-            , label "Amounts update while typing."
-            ]]
-    set f [layout := widget p]
-    focusOn dollar
+network :: (Banana.MonadMoment m) => Termbox.Inputs -> m (Termbox.Outputs String)
+network inputs = do
+  lastKey <- Banana.accumB "<no key pressed>" (act <$> inputs.keys)
+  pure
+    Termbox.Outputs
+      { scene = render <$> lastKey,
+        done = Banana.filterJust (isDone <$> lastKey <@> inputs.keys)
+      }
+  where
+    isDone :: String -> Termbox.Key -> Maybe String
+    isDone n = \case
+      Termbox.KeyEsc -> Just n
+      _ -> Nothing
+    act :: Termbox.Key -> String -> String
+    act k prev = show k
 
-    let networkDescription :: MomentIO ()
-        networkDescription = do
+render :: String -> Termbox.Scene
+render key =
+  fold
+    [ string ("last key pressed: " ++ key),
+      fold
+        [ string "Press",
+          string "Esc" & Termbox.bold & Termbox.atCol 6,
+          string "to quit." & Termbox.atCol 10
+        ]
+        & Termbox.atRow 2
+    ]
+    & Termbox.at Termbox.Pos {row = 2, col = 4}
+    & Termbox.image
 
-        euroIn   <- behaviorText euro   "0"
-        dollarIn <- behaviorText dollar "0"
-
-        let rate = 0.7 :: Double
-            withString f s
-                = maybe "-" (printf "%.2f") . fmap f
-                $ listToMaybe [x | (x,"") <- reads s]
-
-            -- define output values in terms of input values
-            dollarOut, euroOut :: Behavior String
-            dollarOut = withString (/ rate) <$> euroIn
-            euroOut   = withString (* rate) <$> dollarIn
-
-        sink euro   [text :== euroOut  ]
-        sink dollar [text :== dollarOut]
-
-    network <- compile networkDescription
-    actuate network
+string :: [Char] -> Termbox.Image
+string chars =
+  zip [0 ..] chars & foldMap \(i, char) ->
+    Termbox.char char & Termbox.atCol i
