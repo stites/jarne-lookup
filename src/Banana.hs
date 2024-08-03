@@ -1,4 +1,3 @@
--- example code from termbox-banana docs
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ImportQualifiedPost #-}
@@ -13,36 +12,38 @@ import Data.Maybe
 import Data.Vector (Vector)
 import Data.Vector qualified as Vector
 import Control.Lens as L
-import Control.Lens.TH
 import Data.Foldable (fold)
-import Data.Function ((&))
 import Reactive.Banana ((<@>))
 import Reactive.Banana qualified as Banana
 import Termbox.Banana qualified as Termbox
-import GHC.Generics (Generic)
-
 
 data Q final builder = Q
   { _history :: Vector final
   , _current :: builder
+  , _key :: Vector Termbox.Key
   } deriving (Show, Eq)
 $(makeLenses ''Q)
 type Query = Q String (Vector Char)
 
 instance (Semigroup a, Semigroup b) => Semigroup (Q a b) where
-  l <> r = Q (l ^. history <> r ^.history) (l ^. current <> r ^.current)
+  l <> r = Q (l ^. history <> r ^.history) (l ^. current <> r ^.current) (l ^. key <> r ^.key)
 instance (Monoid a, Monoid b) => Monoid (Q a b) where
-  mempty = Q mempty mempty
+  mempty = Q mempty mempty mempty
   
 renderCurrent :: Query -> String
-renderCurrent = Vector.toList . (L.view current) 
+renderCurrent = Vector.toList . L.view current
 
-lastQuery :: Query -> String
-lastQuery = Vector.head . (L.view history) 
+safe :: (Vector a -> b) -> Vector a -> Maybe b
+safe opr v =
+  if null v
+  then Nothing
+  else Just $ opr v
 
+prevQuery :: Query -> String
+prevQuery q = fromMaybe mempty $ safe Vector.head (q ^. history)
 
-build :: Monoid a => Monoid b => Q a b
-build = mempty
+historyTail :: Query -> Vector String
+historyTail q = fromMaybe mempty $ safe Vector.tail (q ^. history)
 
 main :: IO ()
 main = do
@@ -66,21 +67,13 @@ key2input = \case
   Termbox.KeyChar c -> In c
   Termbox.KeySpace -> In ' '
   Termbox.KeyBackspace -> Bksp
+  Termbox.KeyDelete -> Bksp
   Termbox.KeyEnter -> Done
   _ -> Noop
 
--- renderIns :: [In] -> Query
--- renderIns = go mempty where
---   go :: QueryPart -> [In] -> Query
---   go fin [] = Q fin
---   go m (In c:rst) = go (m `Vector.snoc` c) rst
---   go m (Bksp:rst) = go (Vector.init m) rst
---   go m (Done:rst) = Finished (Vector.toList m)
---   go m (Noop:rst) = go m rst
-
 network :: (Banana.MonadMoment m) => Termbox.Inputs -> m (Termbox.Outputs Query)
 network inputs = do
-  q <- Banana.accumB build (act <$> inputs.keys)
+  q <- Banana.accumB mempty (act <$> inputs.keys)
   pure
     Termbox.Outputs
       { scene = render <$> q
@@ -95,25 +88,33 @@ network inputs = do
       _ -> Nothing
 
     act :: Termbox.Key -> Query -> Query
-    act k q = case key2input k of
-         In c -> q & current %~ (`Vector.snoc` c)
-         Bksp -> q & current %~ Vector.init
-         Done -> Q { _current = mempty, _history = (Vector.toList (q ^. current)) `Vector.cons` (q ^. history) }
-         Noop -> q
+    act k q =
+      case key2input k of
+         In c -> (q & current %~ (`Vector.snoc` c)) & key %~ (`Vector.snoc` k)
+         Bksp -> (q & current %~ Vector.init      ) & key %~ (`Vector.snoc` k)
+         -- Bksp -> build
+         Done -> Q { _current = mempty, _history = Vector.toList (q ^. current) `Vector.cons` (q ^. history), _key = mempty }
+         Noop -> q & key %~ (`Vector.snoc` k)
 
+{-# ANN module "HLint: ignore Redundant flip" #-}
 render :: Query -> Termbox.Scene
 render q =
   fold
-    [ string $ "current: " ++ renderCurrent q
-    --, string ( "previous: " ++ Vector.head (q ^. history) )
-    --    & Termbox.atRow 2
-    , fold
+    ([ fold
         [ string "Press",
           string "Esc" & Termbox.bold & Termbox.atCol 6,
           string "to quit." & Termbox.atCol 10
         ]
+    , string ("current: " ++ renderCurrent q)
         & Termbox.atRow 2
-    ]
+    , string (maybe "" show $ safe Vector.last $ q ^. key)
+        & Termbox.atRow 2
+        & Termbox.atCol 50
+    , string ("history: " ++ prevQuery q)
+        & Termbox.atRow 3
+    ] <> Vector.toList (flip Vector.imap (historyTail q) (\i query ->
+      string ("       - " <> query)
+        & Termbox.atRow (4 + i))))
     & Termbox.at Termbox.Pos {row = 2, col = 4}
     & Termbox.image
 
@@ -121,3 +122,4 @@ string :: [Char] -> Termbox.Image
 string chars =
   zip [0 ..] chars & foldMap \(i, char) ->
     Termbox.char char & Termbox.atCol i
+ 

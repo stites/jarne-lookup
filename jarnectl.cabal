@@ -32,20 +32,30 @@ common base
       , vector
       , unix
       , text
+      , aeson
+
+common binbase
+  import:           base
+  build-depends:    jarnectl
+
+library
+  import:           base
+  exported-modules: Lib
+  hs-source-dirs:   src
+  build-depends:    aeson
 
 executable x
-  import:           base
+  import:           binbase
   main-is:          Main.hs
   hs-source-dirs:   src
 
 executable l
-  import:           base
+  import:           binbase
   main-is:          Listen.hs
   hs-source-dirs:   src
-  build-depends:    aeson
 
 executable w
-  import:           base
+  import:           binbase
   main-is:          Widget.hs
   hs-source-dirs:   src
   build-depends:
@@ -63,7 +73,7 @@ executable w
       "-with-rtsopts=-N4 -s"
 
 -- executable h
---   import:           base
+--   import:           binbase
 --   main-is:          Html.hs
 --   hs-source-dirs:   src
 --   build-depends:
@@ -71,7 +81,7 @@ executable w
 --     , reflex-dom
 
 executable b
-  import:           base
+  import:           binbase
   main-is:          Banana.hs
   hs-source-dirs:   src
   build-depends:
@@ -79,11 +89,9 @@ executable b
     -- , reactive-banana-wx ^>= 1.3
     , termbox ^>= 2
     , termbox-banana ^>= 2
-    , generic-deriving
-
 
 -- executable g
---   import:           base
+--   import:           binbase
 --   main-is:          Banana.hs
 --   hs-source-dirs:   src
 --   build-depends:
@@ -93,7 +101,7 @@ executable b
 --     , wxcore >= 0.93
 
 -- executable h
---   import:           base
+--   import:           binbase
 --   main-is:          Html.hs
 --   hs-source-dirs:   src
 --   build-depends:
