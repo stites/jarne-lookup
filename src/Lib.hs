@@ -5,7 +5,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Lib where
+module Lib
+  ( Entry(..)
+  , Hid.init
+  , Hid.DeviceInfo(..)
+  , Hid.Device
+  , devices
+  , firstDevice
+  , runHid
+  ) where
 
 import System.HIDAPI qualified as Hid
 import System.HIDAPI (Device, HIDAPIException(..))
@@ -30,7 +38,7 @@ data Entry
   { outline :: Text
   , definition :: Text
   , dictionary :: Text
-  , can_remove :: Bool
+  , can_remove :: Maybe Bool
   } deriving (Show, Eq, Generic, FromJSON)
 
 data Keeb
@@ -49,18 +57,31 @@ jarne = Keeb
   , _usagePage = 65329 -- 0xff31 is the right one to use!
   }
 
+devices :: IO [Hid.DeviceInfo]
+devices = do
+  ds <- Prelude.filter (\d -> Hid.usagePage d == jarne ^. usagePage) <$> Hid.enumerate (Just $ jarne ^. productId ) (Just $ jarne ^. vendorId)
+  forM_ ds $ \d -> print (Hid.productString d, Hid.productId d, Hid.vendorId d)
+  pure ds
+
+firstDevice :: IO (Maybe Hid.Device)
+firstDevice = do
+  ds <- devices
+  putStrLn "selecting first device"
+  E.try (Hid.openDeviceInfo (Prelude.head ds)) >>= \case
+    Left (e :: E.SomeException) -> pure Nothing
+    Right d -> pure (Just d)
+
 runHid :: (Device -> IO ExitCode) -> IO ()
 runHid act = do
   Hid.init
-
-  ds <- Prelude.filter (\d -> Hid.usagePage d == jarne ^. usagePage) <$> Hid.enumerate (Just $ jarne ^. productId ) (Just $ jarne ^. vendorId)
-
-  forM_ ds $ \d -> print (Hid.productString d, Hid.productId d, Hid.vendorId d)
+  ds <- devices
 
   di <- if Prelude.length ds == 1 then pure (Prelude.head ds) else do
             putStrLn "which device would you like to use?"
             nstr <- Prelude.getLine
             pure $ ds !! (Prelude.read nstr :: Int)
+  putStrLn "selected:"
+  putStrLn $ "  " <> show di
 
   d <- Hid.openDeviceInfo di
 

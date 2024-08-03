@@ -11,12 +11,10 @@ import Control.Monad
 import Data.Aeson
 import Data.Text (Text)
 import qualified Data.Text as T
-import GHC.Generics
 import Data.IORef
 import Data.ByteString.UTF8 as BSU      -- from utf8-string
 import System.Exit
 import System.Posix.Signals
-import Control.Concurrent
 import Data.ByteString.Lazy.UTF8 as BLU -- from utf8-string
 import qualified Control.Exception as E
 
@@ -38,19 +36,18 @@ main = do
   -- void $ installHandler keyboardSignal (Catch (close d >> cleanup d >> E.throwTo tid ExitSuccess)) Nothing
 
   ref <- newIORef T.empty
-  runHid (\d -> forever act ref d >> pure ExitSuccess) >>= \case
+  -- runHid (\d -> forever act ref d >> pure ExitSuccess) >>= \case
+  runHid (\d -> forever act ref d) -- >>= \case
   --   Left e@(HIDAPIException _ _) -> print e >> cleanup d
   --   Right () -> pure ()
 
 
  where
-  act :: IORef Text -> Hid.Device -> IO ExitCode
+  act :: IORef Text -> Hid.Device -> IO ()
   act r d = do
     out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
     if T.null out then
        putStrLn "no entries found"
-
-
     else do
       str <- readIORef r
       let f = T.strip $ str <> out
