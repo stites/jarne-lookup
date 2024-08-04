@@ -72,12 +72,12 @@ main = do
     eventLoop ref d sources
 
 -- Create event sources corresponding to  query  and  resp
-makeSources :: IO (EventSource Text, EventSource (Maybe [Entry]))
-makeSources = (,) <$> newAddHandler <*> newAddHandler
+makeSources :: IO (EventSource Text, EventSource Text, EventSource (Maybe [Entry]))
+makeSources = (,,) <$> newAddHandler <*> newAddHandler <*> newAddHandler
 
 -- Read commands and fire corresponding events
-eventLoop :: IORef Text -> Hid.Device -> (EventSource Text, EventSource (Maybe [Entry])) -> IO ()
-eventLoop r d (equery, eresult) = loop where
+eventLoop :: IORef Text -> Hid.Device -> (EventSource Text, EventSource Text, EventSource (Maybe [Entry])) -> IO ()
+eventLoop r d (equery, ebuffer, eresult) = loop where
   loop = do
     putStr "> "
     hFlush stdout
@@ -89,7 +89,7 @@ eventLoop r d (equery, eresult) = loop where
       "quit" -> pure ()
       ('l':'o':'o':'k':'u':'p':' ': query) -> do
         lookupdev d (T.pack query)
-        readdev r d >>= fire eresult
+        readbuf d "" 
         loop
       s -> do
         putStrLn $ "unknown query: " <> s
@@ -100,6 +100,15 @@ eventLoop r d (equery, eresult) = loop where
 
   reset :: IORef Text -> IO ()
   reset = flip writeIORef mempty
+
+  readbuf :: Hid.Device -> Text -> IO ()
+  readbuf d prev = do
+    out <- stripEnd . T.pack . BSU.toString <$> Hid.read d 65
+    fire ebuffer out 
+    let str = prev <> out
+    if "]" `T.isSuffixOf` str || "Use \"help\" for a list of commands" `T.isSuffixOf` str
+    then pure ()
+    else readbuf d $ prev <> out
   
   readdev :: IORef Text -> Hid.Device -> IO (Maybe [Entry])
   readdev r d = do
@@ -151,14 +160,16 @@ data Win = Double | Triple
 
 
 -- Program logic in terms of events and behaviors.
-networkDescription :: (EventSource Text, EventSource (Maybe [Entry])) -> MomentIO ()
-networkDescription (esquery, esresp) = mdo
-    -- initial random number generator
+networkDescription :: (EventSource Text, EventSource Text, EventSource (Maybe [Entry])) -> MomentIO ()
+networkDescription (esquery, esbuffer, esresp) = mdo
     initialStdGen <- liftIO $ newStdGen
 
     -- Obtain events corresponding to the  query  and  resp  commands
     equery :: Event Text
       <- fromAddHandler (addHandler esquery)
+    ebuffer  :: Event Text
+      <- fromAddHandler (addHandler esbuffer)
+  
     eresp  :: Event (Maybe [Entry])
       <- fromAddHandler (addHandler esresp)
     
@@ -220,6 +231,7 @@ networkDescription (esquery, esresp) = mdo
     -- -- ecredits <- changes bcredits
     -- reactimate $ putStrLn . show <$> equery
     reactimate $ putStrLn . show <$> eresp
+    reactimate $ putStrLn . show <$> ebuffer
     -- reactimate $ putStrLn . showWin    <$> ewin
     -- reactimate $ putStrLn "Not enough credits!" <$ edenied
     pure ()
