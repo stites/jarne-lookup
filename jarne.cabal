@@ -43,21 +43,3 @@ executable l
   hs-source-dirs:   src
   build-depends:    aeson
 
-
-executable w
-  import:           base
-  main-is:          Widget.hs
-  hs-source-dirs:   src
-  build-depends:
-    reflex
-    , reflex-gi-gtk
-    , reflex-process
-    , gi-gtk
-    --, primitive
-    -- primitive
-
-  ghc-options:
-      -O3
-      -threaded
-      -rtsopts
-      "-with-rtsopts=-N4 -s"

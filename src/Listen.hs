@@ -18,7 +18,6 @@ import Control.Concurrent
 import Data.ByteString.Lazy.UTF8 as BLU -- from utf8-string
 import qualified Control.Exception as E
 
-
 data Entry
   = Entry
   { outline :: Text
