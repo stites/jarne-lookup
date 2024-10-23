@@ -25,6 +25,7 @@ common base
       , hidapi
       , lens
       , containers
+      , aeson
       , unordered-containers
       , bytestring
       , utf8-string
