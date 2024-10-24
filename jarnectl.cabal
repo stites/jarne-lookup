@@ -33,29 +33,39 @@ common base
       , unix
       , text
       , aeson
-      , stm
 
--- common binbase
---   import:           base
---   build-depends:    jarnectl
+common binbase
+  import:           base
+  build-depends:    jarnectl
 
 library
   import:           base
-  exported-modules: Lib
+  exposed-modules: Lib
   hs-source-dirs:   src
   build-depends:    aeson
 
 executable x
-  import:           base
+  import:           binbase
   main-is:          Main.hs
   hs-source-dirs:   exe
-  build-depends:    jarnectl
+  build-depends:    stm
 
--- executable l
---   import:           binbase
---   main-is:          Listen.hs
---   hs-source-dirs:   src
---
+executable l
+  import:           binbase
+  main-is:          Listen.hs
+  hs-source-dirs:   src
+
+executable tail
+  import:           binbase
+  main-is:          Tail.hs
+  hs-source-dirs:   exe
+  build-depends:
+      bytestring
+    , streaming
+    , streaming-bytestring
+    , hinotify
+
+
 -- executable w
 --   import:           binbase
 --   main-is:          Widget.hs

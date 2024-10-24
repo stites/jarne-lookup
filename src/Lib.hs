@@ -4,16 +4,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS -fno-warn-unused-top-binds #-}
 
-module Lib
-  ( Entry(..)
-  , Hid.init
-  , Hid.DeviceInfo(..)
-  , Hid.Device
-  , devices
-  , firstDevice
-  , runHid
-  ) where
+module Lib where
 
 import System.HIDAPI qualified as Hid
 import System.HIDAPI (Device, HIDAPIException(..))
@@ -24,8 +17,9 @@ import Data.Text qualified as T
 import Data.Aeson
 import GHC.Generics
 import GHC.Word
-import Data.IORef
+import GHC.Natural
 import Data.ByteString.UTF8 as BSU      -- from utf8-string
+import Data.ByteString as BS
 import System.Exit (ExitCode(..))
 import System.Posix.Signals
 import Control.Concurrent
@@ -50,6 +44,7 @@ data Keeb
   } deriving (Show, Eq)
 $(makeLenses ''Keeb)
 
+jarne :: Keeb
 jarne = Keeb
   { _vendorId = 1
   , _productId = 19530
@@ -68,10 +63,10 @@ firstDevice = do
   ds <- devices
   putStrLn "selecting first device"
   E.try (Hid.openDeviceInfo (Prelude.head ds)) >>= \case
-    Left (e :: E.SomeException) -> pure Nothing
+    Left (_ :: E.SomeException) -> pure Nothing
     Right d -> pure (Just d)
 
-runHid :: (Device -> IO ExitCode) -> IO ()
+runHid :: (Device -> IO ()) -> IO ()
 runHid act = do
   Hid.init
   ds <- devices
@@ -90,8 +85,7 @@ runHid act = do
 
   E.try (act d) >>= \case
     Left e@(HIDAPIException _ _) -> print e >> cleanup d
-    Right ExitSuccess -> cleanup d
-    Right (ExitFailure _) -> cleanup d
+    Right () -> cleanup d
 
  where
 
@@ -100,3 +94,21 @@ runHid act = do
     Hid.close d -- hid_error cleans up device handles, so we have to avoid the double-free
     Hid.exit
     putStrLn "closed the hid handle"
+-----------------------------------------------------------------------------------------------
+-- * Javelin repl
+-----------------------------------------------------------------------------------------------
+
+sendLookup :: Device -> BS.ByteString -> IO ()
+sendLookup d word = void $ Hid.write d ("lookup " <> word <> "\n")
+
+readEntries :: Device -> Natural -> IO (Maybe [Entry])
+readEntries = go T.empty
+  where
+    go    _ _ 0 = pure Nothing
+    go part d n = do
+      out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
+      if T.null out then pure Nothing
+      else let nxt = T.strip (part <> out) in
+        case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
+          Left _ -> go nxt d (n - 1)
+          Right es -> pure (Just es)
