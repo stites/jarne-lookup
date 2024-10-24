@@ -542,6 +542,50 @@ defaultBox = BigBox
       pure $ OpaqueEventSources [keys, OpaqueEventSource resizes,OpaqueEventSource mouses]
   }
 
+lookupLoop :: Device -> IO ()
+lookupLoop d = do
+  BS.putStr "lookup: "
+  hFlush stdout
+  BS.getLine >>= \case
+    "bye" -> return ()
+    word    -> sendLookup d word >> lookupLoop d
+
+main :: IO ()
+main = getArgs >>= \case
+  [] -> putStrLn "help does not exist"
+  rst -> do
+    ref <- newIORef Nothing
+    forkIO $ listenService ref
+    sleep1
+    runHid $ \d -> do
+      sendLookup d (BSU.fromString $ unwords rst)
+      sleep1
+      readIORef ref >>= \case
+        Nothing -> putStrLn "no entries found"
+        Just ez -> forM_ ez print
+
+
+listenService :: IORef (Maybe [Entry]) -> IO ()
+listenService rez = do
+  ref <- newIORef T.empty
+  runHid (forever act ref)
+ where
+  act :: IORef Text -> Hid.Device -> IO ()
+  act r d = do
+    out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
+    if T.null out then
+       writeIORef rez Nothing
+    else do
+      f <- T.strip . (<> out) <$> readIORef r
+      case (eitherDecode (BLU.fromString (T.unpack $ f)) :: Either String [Entry]) of
+        Left _ -> writeIORef r f
+        Right es -> do
+          writeIORef rez (Just es)
+          writeIORef r T.empty
+          forM_ es $ \e -> print e
+
+
+
 
 run_ :: BigBox a -> IO a
 run_ bb = do
