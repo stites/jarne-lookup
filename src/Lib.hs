@@ -10,10 +10,13 @@ module Lib where
 
 import System.HIDAPI qualified as Hid
 import System.HIDAPI (Device, HIDAPIException(..))
+import System.Environment
+import System.IO
 import Control.Monad
 import Control.Lens as L
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Data.Text.Internal.Search qualified as T
 import Data.Aeson
 import GHC.Generics
@@ -100,7 +103,11 @@ runHid act = do
 -----------------------------------------------------------------------------------------------
 
 sendLookup :: Device -> BS.ByteString -> IO ()
-sendLookup d word = void $ Hid.write d ("lookup " <> word <> "\n")
+sendLookup d word = do
+  let cmd = "lookup " <> word <> "\n"
+  Prelude.putStr ">>> "
+  print $ cmd
+  void $ Hid.write d cmd
 
 readEntries :: Device -> Natural -> IO (Either String [Entry])
 readEntries = go T.empty
@@ -113,7 +120,7 @@ readEntries = go T.empty
         pure $ Left "none found"
       else do
         let nxt = T.strip (part <> out)
-        case T.indices "ERR Invalid command." nxt  of
+        case T.indices "ERR Invalid command. Use \"help\" for a list of commands" nxt  of
           [] -> case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
             Left _ -> go nxt d (n - 1)
             Right es -> pure (Right es)
@@ -124,7 +131,9 @@ readEntries = go T.empty
             then pure $ Left $ T.unpack (T.drop i nxt)
             else case (eitherDecode (BLU.fromString (T.unpack (T.take i nxt))) :: Either String [Entry]) of
               Left err -> pure (Left err)
-              Right es -> pure (Right es)
+              Right es -> do
+                TIO.putStrLn nxt
+                pure (Right es)
 
 readEntriesDefault :: Device -> IO (Either String [Entry])
 readEntriesDefault d = readEntries d 100
