@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
@@ -23,9 +24,6 @@ import Control.Concurrent
 -- sleep1 :: IO ()
 -- sleep1 = threadDelay 1000000 --sleep for a million microseconds, or one second
 
--- sendLookup :: Device -> BS.ByteString -> IO ()
--- sendLookup d word = void $ Hid.write d ("lookup " <> word <> "\n")
-
 -- main :: IO ()
 -- main = getArgs >>= \case
 --   [] -> putStrLn "help does not exist"
@@ -41,28 +39,9 @@ import Control.Concurrent
 --         Just ez -> forM_ ez print
 
 
--- listenService :: IORef (Maybe [Entry]) -> IO ()
--- listenService rez = do
---   ref <- newIORef T.empty
---   runHid (forever act ref)
---  where
---   act :: IORef Text -> Hid.Device -> IO ()
---   act r d = do
---     out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
---     if T.null out then
---        writeIORef rez Nothing
---     else do
---       f <- T.strip . (<> out) <$> readIORef r
---       case (eitherDecode (BLU.fromString (T.unpack $ f)) :: Either String [Entry]) of
---         Left _ -> writeIORef r f
---         Right es -> do
---           writeIORef rez (Just es)
---           writeIORef r T.empty
---           forM_ es $ \e -> print e
-
 
 main :: IO ()
-main = runHid lookupRepl
+main =  runHid lookupRepl
 
 lookupRepl :: Device -> IO ()
 lookupRepl d = do
@@ -70,4 +49,6 @@ lookupRepl d = do
   hFlush stdout
   BS.getLine >>= \case
     "bye" -> return ()
-    word    -> sendLookup d word >> lookupRepl d
+    word    -> sendLookup d word >> readEntriesDefault d >>= \case
+      Left err -> putStrLn err
+      Right es -> forM_ es print >> lookupRepl d

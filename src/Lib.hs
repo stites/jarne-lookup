@@ -14,6 +14,7 @@ import Control.Monad
 import Control.Lens as L
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Text.Internal.Search qualified as T
 import Data.Aeson
 import GHC.Generics
 import GHC.Word
@@ -31,7 +32,7 @@ data Entry
   = Entry
   { outline :: Text
   , definition :: Text
-  , dictionary :: Text
+  , dictionary :: Maybe Text
   , can_remove :: Maybe Bool
   } deriving (Show, Eq, Generic, FromJSON)
 
@@ -101,14 +102,29 @@ runHid act = do
 sendLookup :: Device -> BS.ByteString -> IO ()
 sendLookup d word = void $ Hid.write d ("lookup " <> word <> "\n")
 
-readEntries :: Device -> Natural -> IO (Maybe [Entry])
+readEntries :: Device -> Natural -> IO (Either String [Entry])
 readEntries = go T.empty
   where
-    go    _ _ 0 = pure Nothing
+    go :: Text -> Device -> Natural -> IO (Either String [Entry])
+    go    _ _ 0 = pure $ Left "none found"
     go part d n = do
       out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
-      if T.null out then pure Nothing
-      else let nxt = T.strip (part <> out) in
-        case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
-          Left _ -> go nxt d (n - 1)
-          Right es -> pure (Just es)
+      if T.null out then
+        pure $ Left "none found"
+      else do
+        let nxt = T.strip (part <> out)
+        case T.indices "ERR Invalid command." nxt  of
+          [] -> case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
+            Left _ -> go nxt d (n - 1)
+            Right es -> pure (Right es)
+          i:_ -> do
+            putStrLn "found error"
+            let stopat = T.indices "]" nxt
+            if Prelude.null stopat
+            then pure $ Left $ T.unpack (T.drop i nxt)
+            else case (eitherDecode (BLU.fromString (T.unpack (T.take i nxt))) :: Either String [Entry]) of
+              Left err -> pure (Left err)
+              Right es -> pure (Right es)
+
+readEntriesDefault :: Device -> IO (Either String [Entry])
+readEntriesDefault d = readEntries d 100

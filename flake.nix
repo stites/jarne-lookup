@@ -29,6 +29,10 @@
         haskellProjects.default = {
           packages = {
             primitive.source = "0.7.4.0";
+            resourcet.source = "1.2.6";
+            # ghcide.source = "2.5.0.0";
+            # hiedb.source = "0.4.4.0";
+            # lsp.source = "2.3.0.0";
             wx.source = "${inputs.wxHaskell}/wx";
             wxdirect.source = "${inputs.wxHaskell}/wxdirect";
             reactive-banana.source = "${inputs.reactive-banana}/reactive-banana";
@@ -39,6 +43,10 @@
           };
           settings = {
             primitive.check = false;
+            streaming-utils.extraBuildDepends = [ pkgs.zlib pkgs.pkg-config ];
+            # static-ls.broken = false;
+            # implicit-hie-cradle.broken = false;
+            streaming-utils.broken = false;
             wxcore = {super, ...}: {
               custom = _:
                 let
@@ -82,7 +90,10 @@
             };
           };
           devShell = {
-            tools = hp: {
+            tools = hp: with hp; {
+              #inherit
+               # static-ls
+               # hiedb;
               treefmt = config.treefmt.build.wrapper;
             } // config.treefmt.build.programs;
           };
@@ -147,6 +158,9 @@
            config.haskellProjects.default.outputs.devShell
            config.flake-root.devShell
            config.mission-control.devShell
+         ];
+         nativeBuildInputs = with pkgs; [
+           ghciwatch
          ];
       };
     };
