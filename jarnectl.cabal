@@ -50,5 +50,5 @@ executable jarne-lookup
 
 executable repl
   import:           binbase
-  main-is:          Main.hs
+  main-is:          Repl.hs
   hs-source-dirs:   exe

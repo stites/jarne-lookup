@@ -1,20 +1,5 @@
 #+title: jarnectl
 
-setup scripts:
+A quick little binary to get lookup into rofi. You can build the project with
+nix (~nix build~) or cabal (~cabal build jarne-lookup~). If you use nix, you will probably want to use [[https://app.cachix.org/cache/stites][my cache]].
 
-#+begin_example
-mknod -m 777 /tmp/fifo p
-#+end_example
-
-what I want in less pipes:
-#+begin_example
-# Create pipe and start reader.
-rm -f pipe
-mkfifo pipe
-cat pipe &
-
-# Write to pipe.
-while read -r line; do
-  echo "$line"
-done > pipe
-#+end_example

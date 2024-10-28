@@ -149,9 +149,9 @@
             category = "Primary";
           };
         };
-
         # haskell-flake doesn't set the default package, but you can do it here.
-        packages.default = pkgs.haskell.lib.justStaticExecutables self'.packages.jarnectl;
+        packages.default = config.packages.static-jarnectl;
+        packages.static-jarnectl = pkgs.haskell.lib.justStaticExecutables self'.packages.jarnectl;
         packages.dockerImage = pkgs.dockerTools.buildImage {
           name = "jarnectl";
           created = "now";
@@ -166,7 +166,7 @@
             pathsToLink = [ "/jarnectl_sub"  "/bin" ];
           };
         };
-        
+
         devShells.default = pkgs.mkShell {
          inputsFrom = [
            config.haskellProjects.default.outputs.devShell
