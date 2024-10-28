@@ -9,7 +9,7 @@
 module Lib where
 
 import System.HIDAPI qualified as Hid
-import System.HIDAPI (Device, HIDAPIException(..))
+import System.HIDAPI (Device, DeviceInfo, HIDAPIException(..))
 import System.Environment
 import System.IO
 import Control.Monad
@@ -18,6 +18,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Data.Text.Internal.Search qualified as T
+import Data.HashMap.Strict (fromListWith, HashMap)
 import Data.Aeson
 import GHC.Generics
 import GHC.Word
@@ -39,6 +40,9 @@ data Entry
   , can_remove :: Maybe Bool
   } deriving (Show, Eq, Generic, FromJSON)
 
+groupByDefinition :: [Entry] -> HashMap Text [Entry]
+groupByDefinition = fromListWith (++) . fmap (\e -> (definition e, [e]))
+
 data Keeb
   = Keeb
   { _vendorId :: Word16
@@ -59,29 +63,36 @@ jarne = Keeb
 devices :: IO [Hid.DeviceInfo]
 devices = do
   ds <- Prelude.filter (\d -> Hid.usagePage d == jarne ^. usagePage) <$> Hid.enumerate (Just $ jarne ^. productId ) (Just $ jarne ^. vendorId)
-  forM_ ds $ \d -> print (Hid.productString d, Hid.productId d, Hid.vendorId d)
+  -- forM_ ds $ \d -> print (Hid.productString d, Hid.productId d, Hid.vendorId d)
   pure ds
 
 firstDevice :: IO (Maybe Hid.Device)
 firstDevice = do
   ds <- devices
-  putStrLn "selecting first device"
+  -- putStrLn "selecting first device"
   E.try (Hid.openDeviceInfo (Prelude.head ds)) >>= \case
     Left (_ :: E.SomeException) -> pure Nothing
     Right d -> pure (Just d)
 
-runHid :: (Device -> IO ()) -> IO ()
-runHid act = do
-  Hid.init
-  ds <- devices
 
+runHid :: (Device -> IO ()) -> IO ()
+runHid = runHid_ (pure . Prelude.head)
+
+runHidInteractive :: (Device -> IO ()) -> IO ()
+runHidInteractive = runHid_ $ \ds -> do
   di <- if Prelude.length ds == 1 then pure (Prelude.head ds) else do
             putStrLn "which device would you like to use?"
             nstr <- Prelude.getLine
             pure $ ds !! (Prelude.read nstr :: Int)
   putStrLn "selected:"
   putStrLn $ "  " <> show di
+  pure di
 
+runHid_ :: ([DeviceInfo] -> IO DeviceInfo) -> (Device -> IO ()) -> IO ()
+runHid_ selectionPolicy act = do
+  Hid.init
+  ds <- devices
+  di <- selectionPolicy ds
   d <- Hid.openDeviceInfo di
 
   tid <- myThreadId
@@ -97,7 +108,7 @@ runHid act = do
   cleanup d = do
     Hid.close d -- hid_error cleans up device handles, so we have to avoid the double-free
     Hid.exit
-    putStrLn "closed the hid handle"
+    -- putStrLn "closed the hid handle"
 -----------------------------------------------------------------------------------------------
 -- * Javelin repl
 -----------------------------------------------------------------------------------------------
@@ -105,8 +116,8 @@ runHid act = do
 sendLookup :: Device -> BS.ByteString -> IO ()
 sendLookup d word = do
   let cmd = "lookup " <> word <> "\n"
-  Prelude.putStr ">>> "
-  print $ cmd
+  -- Prelude.putStr ">>> "
+  -- print $ cmd
   void $ Hid.write d cmd
 
 readEntries :: Device -> Natural -> IO (Either String [Entry])
@@ -116,6 +127,7 @@ readEntries = go T.empty
     go    _ _ 0 = pure $ Left "none found"
     go part d n = do
       out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
+      -- print out
       if T.null out then
         pure $ Left "none found"
       else do
@@ -125,14 +137,14 @@ readEntries = go T.empty
             Left _ -> go nxt d (n - 1)
             Right es -> pure (Right es)
           i:_ -> do
-            putStrLn "found error"
+            hPutStrLn stderr "found error"
             let stopat = T.indices "]" nxt
             if Prelude.null stopat
             then pure $ Left $ T.unpack (T.drop i nxt)
             else case (eitherDecode (BLU.fromString (T.unpack (T.take i nxt))) :: Either String [Entry]) of
               Left err -> pure (Left err)
               Right es -> do
-                TIO.putStrLn nxt
+                hPutStrLn stderr $ T.unpack nxt
                 pure (Right es)
 
 readEntriesDefault :: Device -> IO (Either String [Entry])
