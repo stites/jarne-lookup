@@ -1,4 +1,4 @@
-#+title: jarnectl
+#+title: jarne-lookup
 
 A quick little binary to get lookup into rofi. You can build the project with
 nix (~nix build~) or cabal (~cabal build jarne-lookup~). If you use nix, you will probably want to use [[https://app.cachix.org/cache/stites][my cache]].
