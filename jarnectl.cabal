@@ -24,7 +24,6 @@ common base
     --, effectful-plugin >= 1.1.0.0
     --, co-log
     , hidapi
-    , microlens
     , unordered-containers
     , bytestring
     , utf8-string
