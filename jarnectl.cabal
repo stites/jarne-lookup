@@ -24,24 +24,19 @@ common base
     --, effectful-plugin >= 1.1.0.0
     --, co-log
     , hidapi
-    , lens
-    , containers
+    , microlens
     , unordered-containers
     , bytestring
     , utf8-string
-    , dlist
-    , vector
+    , lens
     , unix
     , text
     , aeson
-    , random
 
 common binbase
   import:           base
   build-depends:
       jarnectl
-    , hinotify
-    , async
     , process
 
 library
@@ -49,7 +44,7 @@ library
   exposed-modules:  Lib
   hs-source-dirs:   src
 
-executable lookup
+executable jarne-lookup
   import:           binbase
   main-is:          Lookup.hs
   hs-source-dirs:   exe

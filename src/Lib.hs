@@ -1,11 +1,9 @@
-
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS -fno-warn-unused-top-binds #-}
-
 module Lib where
 
 import System.HIDAPI qualified as Hid
@@ -75,19 +73,6 @@ firstDevice = do
     Right d -> pure (Just d)
 
 
-runHid :: (Device -> IO ()) -> IO ()
-runHid = runHid_ (pure . Prelude.head)
-
-runHidInteractive :: (Device -> IO ()) -> IO ()
-runHidInteractive = runHid_ $ \ds -> do
-  di <- if Prelude.length ds == 1 then pure (Prelude.head ds) else do
-            putStrLn "which device would you like to use?"
-            nstr <- Prelude.getLine
-            pure $ ds !! (Prelude.read nstr :: Int)
-  putStrLn "selected:"
-  putStrLn $ "  " <> show di
-  pure di
-
 runHid_ :: ([DeviceInfo] -> IO DeviceInfo) -> (Device -> IO ()) -> IO ()
 runHid_ selectionPolicy act = do
   Hid.init
@@ -109,7 +94,21 @@ runHid_ selectionPolicy act = do
     Hid.close d -- hid_error cleans up device handles, so we have to avoid the double-free
     Hid.exit
     -- putStrLn "closed the hid handle"
------------------------------------------------------------------------------------------------
+
+runHid :: (Device -> IO ()) -> IO ()
+runHid = runHid_ (pure . Prelude.head)
+
+runHidInteractive :: (Device -> IO ()) -> IO ()
+runHidInteractive = runHid_ $ \ds -> do
+  di <- if Prelude.length ds == 1 then pure (Prelude.head ds) else do
+            putStrLn "which device would you like to use?"
+            nstr <- Prelude.getLine
+            pure $ ds !! (Prelude.read nstr :: Int)
+  putStrLn "selected:"
+  putStrLn $ "  " <> show di
+  pure di
+
+----------------------------------------------------------------------------------------------
 -- * Javelin repl
 -----------------------------------------------------------------------------------------------
 
@@ -121,26 +120,47 @@ sendLookup d word = do
   void $ Hid.write d cmd
 
 readEntries :: Device -> Natural -> IO (Either String [Entry])
-readEntries = go T.empty
+readEntries d = go T.empty
   where
-    go :: Text -> Device -> Natural -> IO (Either String [Entry])
-    go    _ _ 0 = pure $ Left "none found"
-    go part d n = do
+    go
+      :: Text      -- ^ accumulated text from the hid device buffer
+      -> Natural   -- ^ a safety bound to make sure we don't recurse indefinitely.
+                   --   in practice this is unnecceary as Hid.read blocks
+
+      -> IO (Either String [Entry]) -- ^ return either an error message or a list of entries
+
+    go    _ 0 = pure $ Left "none found"
+
+    go part n = do
+      -- read from the hid device, but drop any garbage at the end of the string.
       out <- T.dropWhileEnd (\c -> c == '\NUL' || c == '\n') . T.pack . BSU.toString <$> Hid.read d 65
-      -- print out
-      if T.null out then
-        pure $ Left "none found"
-      else do
-        let nxt = T.strip (part <> out)
+
+      -- if we have an empty string, we are done
+      if T.null out then pure $ Left "none found"
+
+      -- o/w get everything we've aquired so far
+      else let nxt = T.strip (part <> out) in
+
+        -- apparently we can / often get back both a valid output _and_ an ERR.
+        -- I'm guessing this is because of a mismatch of the ByteString encoding
+        -- I've chosen.
         case T.indices "ERR Invalid command. Use \"help\" for a list of commands" nxt  of
-          [] -> case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
-            Left _ -> go nxt d (n - 1)
-            Right es -> pure (Right es)
+
+          -- happy path: no error!
+          [] ->
+            case (eitherDecode (BLU.fromString (T.unpack nxt)) :: Either String [Entry]) of
+              Left _ -> go nxt (n - 1)    -- if the parse fails, don't worry and try again.
+              Right es -> pure (Right es) -- otherwise, we are all good!
+
+          -- sad path: we need to break up the string to see if a valid entry was also generated
           i:_ -> do
             hPutStrLn stderr "found error"
-            let stopat = T.indices "]" nxt
-            if Prelude.null stopat
-            then pure $ Left $ T.unpack (T.drop i nxt)
+            let stopat = T.indices "]" nxt -- good json outputs are always arrays
+
+            -- if we didn't find an array, then it is all error
+            if Prelude.null stopat then pure $ Left $ T.unpack (T.drop i nxt)
+
+            -- otherwise, take everything up to the ']' and decode, this time really error if we fail
             else case (eitherDecode (BLU.fromString (T.unpack (T.take i nxt))) :: Either String [Entry]) of
               Left err -> pure (Left err)
               Right es -> do
