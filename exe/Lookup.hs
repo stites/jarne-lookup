@@ -3,7 +3,7 @@
 
 module Main where
 
-import Lib (runHid, sendLookup, readEntriesDefault, groupByDefinition, Entry(outline))
+import Lib (runHid, sendLookup, readEntriesDefault, groupByDefinition, Entry(outline), Select(..))
 
 import Control.Monad (void, forM_)
 import System.IO (hPutStrLn, stdout, stderr)
@@ -18,11 +18,13 @@ import Data.Text.Internal.Search qualified as T
 
 
 main :: IO ()
-main = T.indices "jarne" . T.toLower . T.pack <$> readProcess "bluetoothctl" ["devices", "Connected"] [] >>= \case
-  [] -> hPutStrLn stdout "Jarne not found" >> exitWith (ExitFailure 1)
-  _ -> getArgs >>= \case
-    [] -> exitWith (ExitFailure 1)
-    qs -> runHid $ \d ->
+main = getArgs >>= \case
+  [] -> exitWith (ExitFailure 1)
+  qs -> T.indices "jarne" . T.toLower . T.pack <$> readProcess "bluetoothctl" ["devices", "Connected"] [] >>= \case
+    [] -> go CorneV4 qs -- attempt usb connection with corne
+    _  -> go Jarne qs
+  where
+    go s qs = runHid s $ \d ->
       sendLookup d (BS.fromString $ unwords qs) >> readEntriesDefault d >>= \case
         Left err -> hPutStrLn stderr err >> exitWith (ExitFailure 1)
         Right es ->

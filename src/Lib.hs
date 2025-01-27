@@ -58,25 +58,47 @@ jarne = Keeb
   , _usagePage = 65329 -- 0xff31 is the right one to use!
   }
 
-devices :: IO [Hid.DeviceInfo]
-devices = do
-  ds <- Prelude.filter (\d -> Hid.usagePage d == jarne ^. usagePage) <$> Hid.enumerate (Just $ jarne ^. productId ) (Just $ jarne ^. vendorId)
-  -- forM_ ds $ \d -> print (Hid.productString d, Hid.productId d, Hid.vendorId d)
-  pure ds
+cornev4 :: Keeb
+cornev4 = Keeb
+  { _vendorId = 18003
+  , _productId = 16397
+  , _serialNumber = "e4641448132d2023"
+  , _usagePage = 65329
+  }
+data Select
+  = CorneV4
+  | Jarne
+  deriving (Eq, Show)
 
-firstDevice :: IO (Maybe Hid.Device)
-firstDevice = do
-  ds <- devices
+devices :: Select -> IO [Hid.DeviceInfo]
+devices select = do
+  ds <- Hid.enumerate Nothing Nothing
+  -- forM_ ds $ \d -> print (Hid.productString d, Hid.serialNumber d,  Hid.productId d, Hid.vendorId d, Hid.usagePage d)
+  let xs = Prelude.filter match ds
+  pure xs
+  where
+    board = case select of
+      CorneV4 -> cornev4
+      Jarne   -> jarne
+
+    match d = Hid.usagePage d == board ^. usagePage
+           && Hid.productId d == board ^. productId
+           && Hid.vendorId d  == board ^. vendorId
+
+
+firstDevice :: Select -> IO (Maybe Hid.Device)
+firstDevice s = do
+  ds <- devices s
   -- putStrLn "selecting first device"
   E.try (Hid.openDeviceInfo (Prelude.head ds)) >>= \case
     Left (_ :: E.SomeException) -> pure Nothing
     Right d -> pure (Just d)
 
 
-runHid_ :: ([DeviceInfo] -> IO DeviceInfo) -> (Device -> IO ()) -> IO ()
-runHid_ selectionPolicy act = do
+runHid_ :: Select -> ([DeviceInfo] -> IO DeviceInfo) -> (Device -> IO ()) -> IO ()
+runHid_ select selectionPolicy act = do
   Hid.init
-  ds <- devices
+  ds <- devices select
   di <- selectionPolicy ds
   d <- Hid.openDeviceInfo di
 
@@ -95,11 +117,11 @@ runHid_ selectionPolicy act = do
     Hid.exit
     -- putStrLn "closed the hid handle"
 
-runHid :: (Device -> IO ()) -> IO ()
-runHid = runHid_ (pure . Prelude.head)
+runHid :: Select -> (Device -> IO ()) -> IO ()
+runHid s = runHid_ s (pure . Prelude.head)
 
-runHidInteractive :: (Device -> IO ()) -> IO ()
-runHidInteractive = runHid_ $ \ds -> do
+runHidInteractive :: Select -> (Device -> IO ()) -> IO ()
+runHidInteractive s = runHid_ s $ \ds -> do
   di <- if Prelude.length ds == 1 then pure (Prelude.head ds) else do
             putStrLn "which device would you like to use?"
             nstr <- Prelude.getLine
